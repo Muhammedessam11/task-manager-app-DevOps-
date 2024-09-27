@@ -12,37 +12,29 @@ pipeline {
                 sh 'cd backend && npm install'
             }
         }
+        stage('Start Services') {
+            steps {
+                // Start MySQL using Docker Compose
+                sh 'docker-compose up -d'
+            }
+        }
         stage('Run Tests') {
             steps {
-                sh 'cd backend && npm test'
+                sh 'cd backend && npm test --detectOpenHandles'
             }
         }
         stage('Build Docker Image') {
             steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}")
-                }
+                sh 'docker build -t my-app .'
             }
         }
         stage('Push to Docker Hub') {
             steps {
-                script {
-                    // Login to Docker Hub
-                    sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-
-                    // Tag the image (if needed)
-                    docker.image("${DOCKER_IMAGE}").tag('latest')
-
-                    // Push the image to Docker Hub
-                    docker.image("${DOCKER_IMAGE}").push('latest')
+                withCredentials([string(credentialsId: 'DOCKERHUB_CREDENTIALS', variable: 'DOCKERHUB_PASSWORD')]) {
+                    sh 'docker login -u my-username -p $DOCKERHUB_PASSWORD'
+                    sh 'docker push my-app'
                 }
-            }
-        }
-        stage('Run Docker Compose') {
-            steps {
-                sh 'docker-compose up -d'
             }
         }
     }
 }
-
